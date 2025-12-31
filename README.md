@@ -27,7 +27,7 @@
 1. **直接访问**：在输入框输入歌曲 ID，点击播放或生成链接。
 2. **URL 传参**：
    - 格式：`index.html?id=歌曲ID`
-   - 示例：`https://a2942.top/demo/demofiles/163MusicJump/?id=2619303313`
+   - 示例：`https://a2942.github.io/163MusicJump/index.html?id=2619303313`
    - 效果：页面加载后会自动展示歌曲预览并弹出跳转确认。
 
 ## 🎨 界面展示
