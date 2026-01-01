@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音乐预览与跳转分享</title>
+    <title>网易云音乐跳转分享</title>
     <style>
         body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f4f4f7; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; color: #333; }
         .main-card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; width: 90%; max-width: 380px; transition: 0.3s; }
         h2 { color: #e03f3f; margin: 0 0 20px 0; font-size: 20px; letter-spacing: 1px; }
         
-        /* 预览区域样式 */
         .preview-container { 
             margin-bottom: 20px; 
             min-height: 86px; 
@@ -35,28 +34,85 @@
         .btn-outline { background: white; color: #e03f3f; border: 1px solid #e03f3f; }
         .btn-outline:hover { background: #fff5f5; }
 
-        /* 分享区域 */
-        .share-result { margin-top: 15px; padding: 12px; background: #fdfdfd; border-radius: 10px; display: none; border: 1px dashed #d33030; animation: slideDown 0.3s ease-out; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        /* --- 分享区域过渡效果 --- */
+        .share-result { 
+            margin-top: 0; 
+            padding: 0 12px; 
+            background: #fdfdfd; 
+            border-radius: 10px; 
+            border: 1px dashed transparent;
+            overflow: hidden;
+            max-height: 0; /* 初始高度为0 */
+            opacity: 0;    /* 初始透明度为0 */
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        /* 当激活时 */
+        .share-result.active { 
+            margin-top: 15px;
+            padding: 12px;
+            max-height: 200px; /* 足够容纳内容的高度 */
+            opacity: 1;
+            border-color: #d33030;
+        }
+
         .share-url { font-size: 11px; color: #777; word-break: break-all; margin-bottom: 8px; background: #fff; padding: 6px; border-radius: 4px; border: 1px solid #eee; }
 
-        /* 弹窗样式 */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(5px); }
-        .modal-box { background: white; width: 80%; max-width: 300px; padding: 20px; border-radius: 16px; text-align: center; }
+        /* --- 弹窗过渡效果 --- */
+        .modal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.6); 
+            display: flex; /* 始终 flex */
+            justify-content: center; align-items: center; 
+            z-index: 1000; 
+            backdrop-filter: blur(5px);
+            /* 过渡关键属性 */
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        /* 弹窗激活状态 */
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        .modal-box { 
+            background: white; width: 80%; max-width: 300px; padding: 20px; border-radius: 16px; text-align: center; 
+            /* 进场动画：缩小并下沉 */
+            transform: scale(0.8) translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        /* 弹窗内盒子激活状态 */
+        .modal-overlay.active .modal-box {
+            transform: scale(1) translateY(0);
+        }
+
         .modal-footer { display: flex; gap: 10px; margin-top: 20px; }
         .btn-modal { flex: 1; padding: 10px; border-radius: 8px; cursor: pointer; border: none; font-weight: bold; font-size: 13px; }
         .btn-cancel { background: #eee; color: #666; }
         .btn-confirm { background: #e03f3f; color: white; }
 
         .status-text { margin-top: 12px; font-size: 11px; color: #bbb; height: 15px; }
+
+        .footer-signature {
+            margin-top: 25px;
+            font-size: 10px;
+            color: #ddd;            /* 浅灰色，保持低调 */
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-top: 1px solid #f9f9f9; /* 加一条若隐若现的分割线 */
+            padding-top: 15px;
+            user-select: none;      /* 防止误触选择文本 */
+        }
+
     </style>
 </head>
 <body>
 
     <div class="main-card">
         <h2>🎵 音乐超链接</h2>
-        
-        <!-- 预览显示区 -->
         <div id="previewArea" class="preview-container">
             <div class="empty-preview">输入 ID 后自动加载预览</div>
         </div>
@@ -77,9 +133,13 @@
         </div>
 
         <div id="status" class="status-text"></div>
+
+        <div class="footer-signature">
+            Crafted with 💖 by Gemini 3 Flash Preview and a2942
+        </div>
     </div>
 
-    <!-- 弹窗 -->
+    <!-- 弹窗：通过控制 active 类名来切换 -->
     <div id="askModal" class="modal-overlay">
         <div class="modal-box">
             <div style="font-weight: bold; margin-bottom: 10px;">确认打开</div>
@@ -99,7 +159,7 @@
 
     // 输入实时处理
     function handleInput(val) {
-        document.getElementById('shareArea').style.display = 'none';
+        document.getElementById('shareArea').classList.remove('active');
         id = idBox.value.trim();
         clearTimeout(inputDelayTimer);
         if (!val) { triggerTrueSection(id); };
@@ -117,7 +177,6 @@
         updatePreview(targetId);
     }
 
-    // 更新 Iframe 预览
     function updatePreview(id) {
         const area = document.getElementById('previewArea');
         area.innerHTML = `<iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width="330" height="86" src="https://music.163.com/outchain/player?type=2&id=${id}&auto=0&height=66"></iframe>`;
@@ -127,7 +186,6 @@
         document.getElementById('previewArea').innerHTML = `<div class="empty-preview">输入 ID 后自动加载预览</div>`;
     }
 
-    // --- 分享逻辑 ---
     function generateShareLink() {
         const id = document.getElementById('songId').value.trim();
         if (!id || isNaN(id)) return alert("请输入有效 ID");
@@ -136,7 +194,8 @@
         const finalUrl = `${baseUrl}?id=${id}`;
         
         document.getElementById('shareUrlText').innerText = finalUrl;
-        document.getElementById('shareArea').style.display = 'block';
+        // 添加 active 类名触发动画
+        document.getElementById('shareArea').classList.add('active');
     }
 
     function copyLink() {
@@ -148,15 +207,17 @@
         });
     }
 
-    // --- 跳转逻辑 ---
+    // --- 修改后的弹窗控制逻辑 ---
     function openAskModal() {
         const id = document.getElementById('songId').value.trim();
-        if (!id) return;
+        if (!id || isNaN(id)) return alert("请输入有效 ID");
         currentId = id;
-        document.getElementById('askModal').style.display = 'flex';
+        document.getElementById('askModal').classList.add('active');
     }
 
-    function closeModal() { document.getElementById('askModal').style.display = 'none'; }
+    function closeModal() { 
+        document.getElementById('askModal').classList.remove('active'); 
+    }
 
     function startProcess() {
         closeModal();
@@ -166,7 +227,6 @@
     function executeJump(id) {
         const statusEl = document.getElementById('status');
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        
         let appUrl = isMobile ? `orpheus://song/${id}` : `orpheus://${btoa(JSON.stringify({type:"song", id:id, cmd:"play"}))}`;
         const webUrl = `https://music.163.com/#/song?id=${id}`;
 
@@ -186,11 +246,13 @@
             if (!hasLeft && (Date.now() - startTime < 3500)) {
                 statusEl.innerText = "未检测到 App，正在跳转网页版...";
                 setTimeout(() => window.location.href = webUrl, 800);
+            } else {
+                statusEl.innerText = "已成功唤起 App";
+                setTimeout(() => { statusEl.innerText = ""; }, 4000);
             }
         }, 2500);
     }
 
-    // 初始化
     window.onload = function() {
         const urlParams = new URLSearchParams(window.location.search);
         const id = urlParams.get('id');
@@ -198,6 +260,7 @@
             document.getElementById('songId').value = id;
             updatePreview(id);
             currentId = id;
+            // 延迟一点点弹出，视觉效果更佳
             setTimeout(openAskModal, 800);
         }
     };
@@ -205,4 +268,3 @@
 
 </body>
 </html>
-
